@@ -70,7 +70,41 @@ function updateMetaTranslations(){for(const [field,target] of [['title','metaTit
 $('metaTitle').addEventListener('input',updateMetaTranslations);$('metaDescription').addEventListener('input',updateMetaTranslations);
 $('copyMetaTitleUk').onclick=()=>navigator.clipboard.writeText($('metaTitleUk').value).catch(()=>alert('Не вдалося скопіювати переклад.'));
 $('copyMetaDescriptionUk').onclick=()=>navigator.clipboard.writeText($('metaDescriptionUk').value).catch(()=>alert('Не вдалося скопіювати переклад.'));
-$('generateMetadata').onclick=()=>{const terms=metadataTokens();if(!terms.length){alert('Додай опис ілюстрації або Keywords.');return}const style=$('illustrationStyle').value;const styleLabel={vector:'Vector Illustration',cartoon:'Cartoon Illustration',watercolor:'Watercolor Illustration',minimal:'Minimal Illustration',line:'Line Art Illustration',none:'Illustration'}[style];const subjects=terms.filter(x=>!['vector','illustration','cartoon','drawing','graphic','design','pattern','sticker','icon','set','collection'].includes(x)).slice(0,5);const subject=subjects.length?subjects.map(x=>x[0].toUpperCase()+x.slice(1)).join(' '):'Creative';$('metaTitle').value=(subject+' '+styleLabel).slice(0,200);$('metaDescription').value=('Original '+styleLabel.toLowerCase()+' featuring '+(subjects.length?metadataPhrase(subjects):'decorative elements')+'. '+(terms.includes('isolated')?'Isolated elements. ':'')+'Relevant details: '+terms.slice(0,12).join(', ')+'.').slice(0,2000);metaGeneratedEnglish={title:$('metaTitle').value,description:$('metaDescription').value};const ukStyle={vector:'векторна ілюстрація',cartoon:'мультяшна ілюстрація',watercolor:'акварельна ілюстрація',minimal:'мінімалістична ілюстрація',line:'лінійна ілюстрація',none:'ілюстрація'}[style];const ukSubjects=ukList(subjects);metaGeneratedUkrainian={title:(ukSubjects?ukSubjects+' – ':'')+ukStyle,description:'Оригінальна '+ukStyle+' із зображенням: '+(ukSubjects||'декоративні елементи')+'. '+(terms.includes('isolated')?'Ізольовані елементи. ':'')+'Пов’язані деталі: '+ukList(terms.slice(0,12))+'.'};updateMetaTranslations();message('Чернетку метаданих створено. Переклад орієнтовний; перевір обидва тексти.')};
+// Natural, offline template-based copy. Use only objects explicitly mentioned by the user.
+const META_OBJECTS={toothbrush:['toothbrushes','зубні щітки'],toothpaste:['toothpaste','зубна паста'],mouthwash:['mouthwash','ополіскувач'],floss:['dental floss','зубна нитка'],gnome:['garden gnomes','садові гноми'],flower:['flowers','квіти'],cat:['cats','коти'],dog:['dogs','собаки'],moth:['moths','метелики молі'],butterfly:['butterflies','метелики'],icecream:['ice cream','морозиво'],cake:['cakes','торти'],mushroom:['mushrooms','гриби'],tree:['trees','дерева'],rabbit:['rabbits','кролики'],bird:['birds','птахи'],heart:['hearts','серця'],star:['stars','зірки'],gift:['gifts','подарунки'],cup:['cups','чашки'],coffee:['coffee','кава'],tea:['tea','чай'],soap:['soap','мило'],bottle:['bottles','пляшки'],brush:['brushes','щітки']};
+function naturalList(arr){if(arr.length<2)return arr[0]||'';if(arr.length===2)return arr.join(' and ');return arr.slice(0,-1).join(', ')+', and '+arr[arr.length-1]}
+function naturalUkList(arr){if(arr.length<2)return arr[0]||'';return arr.slice(0,-1).join(', ')+ ' та '+arr[arr.length-1]}
+$('generateMetadata').onclick=()=>{
+ const raw=$('illustrationDesc').value.trim();
+ if(!raw){alert('Спочатку опиши, що саме зображено на ілюстрації. Одних Keywords недостатньо для точного опису.');return}
+ const terms=extractStockTerms(raw);
+ const picked=Object.keys(META_OBJECTS).filter(k=>terms.includes(k));
+ const english=picked.map(k=>META_OBJECTS[k][0]);const ukrainian=picked.map(k=>META_OBJECTS[k][1]);
+ const isDental=terms.some(t=>['dental','oral','tooth','teeth','toothbrush','toothpaste','mouthwash','floss','hygiene'].includes(t));
+ const isSet=terms.some(t=>['set','collection','kit','accessory','accessories'].includes(t))||picked.length>1;
+ const style=$('illustrationStyle').value;
+ const styleName={vector:'vector',cartoon:'cartoon',watercolor:'watercolor',minimal:'minimalist',line:'line art',none:''}[style];
+ const styleUk={vector:'векторний',cartoon:'мультяшний',watercolor:'акварельний',minimal:'мінімалістичний',line:'лінійний',none:''}[style];
+ let title,description,titleUk,descriptionUk;
+ if(isDental&&english.length){
+   title='Dental Hygiene Essentials and Oral Care Accessories'+(styleName?' '+(style==='vector'?'Vector':'Illustration'):'');
+   description='A collection of everyday oral care products featuring '+naturalList(english)+'. '+(styleName?('These '+styleName+' illustrations show essential items for dental hygiene and daily care.'):'The collection shows essential items for dental hygiene and daily care.');
+   titleUk='Засоби гігієни зубів та аксесуари для догляду за ротовою порожниною';
+   descriptionUk='Колекція засобів щоденного догляду за ротовою порожниною, зокрема '+naturalUkList(ukrainian)+'. Ілюстрації показують предмети для гігієни зубів та щоденного догляду.';
+ }else if(english.length){
+   const subject=naturalList(english);
+   title=(isSet?'Collection of ':'')+subject.charAt(0).toUpperCase()+subject.slice(1)+(styleName?' '+(style==='vector'?'Vector Illustrations':styleName+' Illustrations'):' Illustrations');
+   description=(isSet?'A collection of ':'An illustration of ')+subject+'. '+(styleName?'Created in a '+styleName+' style.':'The artwork focuses on the depicted subjects.');
+   titleUk=(isSet?'Колекція: ':'')+naturalUkList(ukrainian)+(styleUk?' – '+styleUk+' ілюстрації':' – ілюстрації');
+   descriptionUk=(isSet?'Колекція із зображеннями: ':'Ілюстрація із зображенням: ')+naturalUkList(ukrainian)+'. '+(styleUk?'Виконана у стилі: '+styleUk+'.':'');
+ }else{
+   alert('Не вдалося розпізнати предмети в описі. Додай конкретні назви об’єктів (наприклад: зубна щітка, паста, нитка), щоб не створювати випадковий перелік Keywords.');return;
+ }
+ $('metaTitle').value=title.slice(0,200);$('metaDescription').value=description.slice(0,2000);
+ metaGeneratedEnglish={title:$('metaTitle').value,description:$('metaDescription').value};
+ metaGeneratedUkrainian={title:titleUk,description:descriptionUk};updateMetaTranslations();
+ message('Створено зв’язні Title та Description. Перевір, чи всі названі предмети справді є на ілюстрації.');
+};
 $('copyMetaTitle').onclick=()=>navigator.clipboard.writeText($('metaTitle').value).then(()=>message('Title скопійовано.')).catch(()=>message('Не вдалося скопіювати Title.'));
 $('copyMetaDescription').onclick=()=>navigator.clipboard.writeText($('metaDescription').value).then(()=>message('Description скопійовано.')).catch(()=>message('Не вдалося скопіювати Description.'));
 const STUDIO_EDITOR_URL='https://meta-2k9p.onrender.com/';
